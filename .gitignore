@@ -1,0 +1,6 @@
+desktop/node_modules/
+dist-desktop/
+dist/*
+!dist/.gitkeep
+.DS_Store
+*.xcuserstate
