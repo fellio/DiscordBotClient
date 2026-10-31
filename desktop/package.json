@@ -1,0 +1,18 @@
+{
+    "name": "botclient-desktop",
+    "productName": "BotClient",
+    "version": "2.0.0",
+    "description": "Discord bot client with Vencord / Equicord support",
+    "main": "main.js",
+    "author": "local",
+    "license": "GPL-3.0-or-later",
+    "private": true,
+    "scripts": {
+        "start": "electron .",
+        "package": "electron-packager . BotClient --platform=darwin --arch=arm64 --out=../dist-desktop --icon=assets/AppIcon.icns --app-bundle-id=local.botclient.air --app-version=2.0.0 --overwrite --asar --ignore=\"^/(extensions|assets)\" --extra-resource=extensions --extra-resource=assets"
+    },
+    "devDependencies": {
+        "@electron/packager": "^19.0.0",
+        "electron": "^43.2.0"
+    }
+}
