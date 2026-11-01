@@ -556,6 +556,168 @@
         accent_color: null,
     };
 
+    const nativeEditor = window.webkit?.messageHandlers?.bcEditor ?? null;
+    let editorPort = null;
+    let editorAwaitingPort = false;
+
+    function openMessageEditor() {
+        if (!nativeEditor) {
+            debug("editor: native bridge unavailable");
+            return false;
+        }
+        editorAwaitingPort = true;
+        nativeEditor.postMessage({ type: "open" });
+        debug("editor: open requested");
+        return true;
+    }
+
+    function botClientPlugin() {
+        const plugins = window.Vencord?.Plugins?.plugins;
+        if (!plugins) return null;
+        if (plugins.BotClient?.chatBarButton?.render) return plugins.BotClient;
+        return Object.values(plugins)
+            .find(plugin => plugin?.chatBarButton?.render && /botclient/i.test(plugin.name || "")) || null;
+    }
+
+    function currentChannel() {
+        const match = location.pathname.match(/^\/channels\/(?:\d+|@me)\/(\d+)/);
+        if (!match) return null;
+        try {
+            return window.Vencord?.Webpack?.Common?.ChannelStore?.getChannel?.(match[1]) ?? null;
+        } catch {
+            return null;
+        }
+    }
+
+    function launchEditorFromPlugin() {
+        const plugin = botClientPlugin();
+        const channel = currentChannel();
+        if (!plugin || !channel) {
+            debug(`editor: launcher not ready plugin=${Boolean(plugin)} channel=${Boolean(channel)}`);
+            return false;
+        }
+        try {
+            const element = plugin.chatBarButton.render({ channel, type: { analyticsName: "GUILD_TEXT" } });
+            const onClick = element?.props?.onClick;
+            if (typeof onClick !== "function") {
+                debug("editor: plugin button has no click handler");
+                return false;
+            }
+            onClick();
+            debug("editor: plugin button invoked");
+            return true;
+        } catch (error) {
+            debug(`editor: plugin button failed ${error?.message || error}`);
+            return false;
+        }
+    }
+
+    function installEditorLauncher() {
+        if (!document.body) return;
+        if (!document.getElementById("bc-editor-launcher-style")) {
+            const style = document.createElement("style");
+            style.id = "bc-editor-launcher-style";
+            style.textContent = [
+                "#bc-editor-launcher{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 104px);z-index:900;display:none;align-items:center;gap:6px;border:0;border-radius:999px;padding:9px 14px;background:#5865f2;color:#fff;font:600 13px/1 -apple-system,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;}",
+                "#bc-editor-launcher svg{width:16px;height:16px;flex:0 0 auto;}",
+            ].join("");
+            (document.head || document.documentElement).appendChild(style);
+        }
+        let button = document.getElementById("bc-editor-launcher");
+        if (!button) {
+            button = document.createElement("button");
+            button.id = "bc-editor-launcher";
+            button.type = "button";
+            button.title = "Advanced Message Editor (Beta)";
+            button.setAttribute("aria-label", "Advanced Message Editor (Beta)");
+            button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3H5Zm1 4a1 1 0 0 0 0 2h5a1 1 0 1 0 0-2H6Zm-1 6a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H6Z" clip-rule="evenodd"/></svg><span>エディタ</span>';
+            button.addEventListener("click", event => {
+                event.preventDefault();
+                launchEditorFromPlugin();
+            });
+            document.body.appendChild(button);
+            debug("editor: launcher installed");
+        }
+        const sync = () => {
+            const present = document.getElementById("bc-editor-launcher");
+            if (!present) {
+                installEditorLauncher();
+                return;
+            }
+            present.style.display = currentChannel() && botClientPlugin() ? "flex" : "none";
+        };
+        sync();
+        setInterval(sync, 1000);
+    }
+
+    function handleEditorReady() {
+        if (!editorAwaitingPort) {
+            debug("editor: ready without open request");
+            return;
+        }
+        editorAwaitingPort = false;
+        try {
+            editorPort?.close();
+        } catch {
+            // previous port may already be closed
+        }
+        const channel = new MessageChannel();
+        editorPort = channel.port2;
+        editorPort.onmessage = event => {
+            const data = event.data;
+            if (data?.type !== "init") return;
+            debug("editor: init forwarded to native");
+            try {
+                nativeEditor?.postMessage({ type: "init", payload: data });
+            } catch (error) {
+                debug(`editor: init relay failed ${error?.message || error}`);
+            }
+        };
+        editorPort.start();
+        window.postMessage("forward-editor-port", "*", [channel.port1]);
+        debug("editor: port delivered");
+    }
+
+    function handleEditorSubmit(payload) {
+        if (!editorPort || !payload) {
+            debug("editor: submit without active port");
+            return;
+        }
+        const files = Array.isArray(payload.files) ? payload.files : [];
+        for (const file of files) {
+            if (typeof file?.buffer !== "string") continue;
+            try {
+                file.buffer = decodeBase64(file.buffer).buffer;
+            } catch {
+                file.buffer = new ArrayBuffer(0);
+            }
+        }
+        try {
+            editorPort.postMessage({ ...payload, type: "submit" });
+            debug(`editor: submit forwarded action=${payload.action} files=${files.length}`);
+        } catch (error) {
+            debug(`editor: submit relay failed ${error?.message || error}`);
+        }
+    }
+
+    window.__bcEditorEvent = event => {
+        if (!event || typeof event.type !== "string") return 0;
+        switch (event.type) {
+            case "ready":
+                handleEditorReady();
+                return 1;
+            case "submit":
+                handleEditorSubmit(event.data);
+                return 1;
+            case "closed":
+                editorAwaitingPort = false;
+                debug("editor: closed");
+                return 1;
+            default:
+                return 0;
+        }
+    };
+
     window.BotClientNative = {
         getBotInfo,
         getBotClientVersion: () => "2.0.0",
@@ -577,7 +739,7 @@
         maximize: () => {},
         focus: () => {},
         flashFrame: () => {},
-        requestOpenMessageEditorWindow: async () => false,
+        requestOpenMessageEditorWindow: () => openMessageEditor(),
     };
 
     window.protoAPI = {
@@ -744,9 +906,11 @@
         document.addEventListener("DOMContentLoaded", () => {
             installStyles();
             dispatchMeta();
+            installEditorLauncher();
         }, { once: true });
     } else {
         installStyles();
         dispatchMeta();
+        installEditorLauncher();
     }
 })();
