@@ -656,12 +656,36 @@
 
     let editorButtonTimer = null;
 
+    // The BotClient plugin registers its own chat bar button, which Vencord injects
+    // into the mobile composer when the plugin starts successfully. Hide it so the
+    // inline button below is the only editor entry point.
+    function suppressPluginEditorButton() {
+        try {
+            window.Vencord?.Api?.ChatButtons?.removeChatBarButton?.("BotClient");
+        } catch {
+            // Vencord API may not be ready yet
+        }
+        let hidden = false;
+        for (const element of document.querySelectorAll(".vc-chatbar-button")) {
+            const label = element.getAttribute("aria-label")
+                || element.querySelector("[aria-label]")?.getAttribute("aria-label")
+                || "";
+            if (!/advanced message editor/i.test(label)) continue;
+            if (element.style.display !== "none") {
+                element.style.display = "none";
+                hidden = true;
+            }
+        }
+        if (hidden) debug("editor: hid plugin chat button");
+    }
+
     function installEditorButton() {
         if (!document.body) return;
         if (!editorButtonTimer) {
             editorButtonTimer = setInterval(installEditorButton, 1000);
         }
         installEditorButtonStyles();
+        suppressPluginEditorButton();
         const host = composerEditorHost();
         if (!host) return;
 
