@@ -594,7 +594,7 @@
         const plugin = botClientPlugin();
         const channel = currentChannel();
         if (!plugin || !channel) {
-            debug(`editor: launcher not ready plugin=${Boolean(plugin)} channel=${Boolean(channel)}`);
+            debug(`editor: button not ready plugin=${Boolean(plugin)} channel=${Boolean(channel)}`);
             return false;
         }
         try {
@@ -613,42 +613,78 @@
         }
     }
 
-    function installEditorLauncher() {
+    function composerEditorHost() {
+        const buttons = Array.from(document.querySelectorAll('button, [role="button"]'));
+        const send = buttons.find(button => /^send message$/i.test((button.getAttribute("aria-label") || "").trim()));
+        const anchor = buttons.find(button => /emoji/i.test(button.getAttribute("aria-label") || ""))
+            || buttons.find(button => /(gif|sticker)/i.test(button.getAttribute("aria-label") || ""))
+            || send;
+        if (!anchor) return null;
+
+        let row = null;
+        if (send && send !== anchor) {
+            const ancestors = new Set();
+            for (let node = send; node; node = node.parentElement) ancestors.add(node);
+            row = anchor;
+            while (row && !ancestors.has(row)) row = row.parentElement;
+            if (!row || row === document.body) row = send.parentElement;
+        } else {
+            row = anchor.parentElement;
+        }
+        if (!row) return null;
+
+        let before = anchor;
+        while (before.parentElement && before.parentElement !== row) before = before.parentElement;
+        return { row, before };
+    }
+
+    function editorButtonIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3H5Zm1 4a1 1 0 0 0 0 2h5a1 1 0 1 0 0-2H6Zm-1 6a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H6Z" clip-rule="evenodd"/></svg>';
+    }
+
+    function installEditorButtonStyles() {
+        if (document.getElementById("bc-editor-button-style")) return;
+        const style = document.createElement("style");
+        style.id = "bc-editor-button-style";
+        style.textContent = [
+            ".bc-editor-inline-button{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;margin:0 2px;padding:0;border:0;background:transparent;color:var(--interactive-normal,#b5bac1);cursor:pointer;-webkit-tap-highlight-color:transparent;}",
+            ".bc-editor-inline-button:active{color:var(--interactive-active,#fff);}",
+            ".bc-editor-inline-button svg{display:block;width:22px;height:22px;}",
+        ].join("");
+        (document.head || document.documentElement).appendChild(style);
+    }
+
+    let editorButtonTimer = null;
+
+    function installEditorButton() {
         if (!document.body) return;
-        if (!document.getElementById("bc-editor-launcher-style")) {
-            const style = document.createElement("style");
-            style.id = "bc-editor-launcher-style";
-            style.textContent = [
-                "#bc-editor-launcher{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 104px);z-index:900;display:none;align-items:center;gap:6px;border:0;border-radius:999px;padding:9px 14px;background:#5865f2;color:#fff;font:600 13px/1 -apple-system,system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;}",
-                "#bc-editor-launcher svg{width:16px;height:16px;flex:0 0 auto;}",
-            ].join("");
-            (document.head || document.documentElement).appendChild(style);
+        if (!editorButtonTimer) {
+            editorButtonTimer = setInterval(installEditorButton, 1000);
         }
-        let button = document.getElementById("bc-editor-launcher");
-        if (!button) {
-            button = document.createElement("button");
-            button.id = "bc-editor-launcher";
-            button.type = "button";
-            button.title = "Advanced Message Editor (Beta)";
-            button.setAttribute("aria-label", "Advanced Message Editor (Beta)");
-            button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3H5Zm1 4a1 1 0 0 0 0 2h5a1 1 0 1 0 0-2H6Zm-1 6a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H6Z" clip-rule="evenodd"/></svg><span>エディタ</span>';
-            button.addEventListener("click", event => {
-                event.preventDefault();
-                launchEditorFromPlugin();
-            });
-            document.body.appendChild(button);
-            debug("editor: launcher installed");
+        installEditorButtonStyles();
+        const host = composerEditorHost();
+        if (!host) return;
+
+        let button = document.querySelector('[data-bc-editor-button="1"]');
+        if (button && button.parentElement === host.row) {
+            button.style.display = currentChannel() && botClientPlugin() ? "flex" : "none";
+            return;
         }
-        const sync = () => {
-            const present = document.getElementById("bc-editor-launcher");
-            if (!present) {
-                installEditorLauncher();
-                return;
-            }
-            present.style.display = currentChannel() && botClientPlugin() ? "flex" : "none";
-        };
-        sync();
-        setInterval(sync, 1000);
+        button?.remove();
+        button = document.createElement("button");
+        button.type = "button";
+        button.dataset.bcEditorButton = "1";
+        button.className = "bc-editor-inline-button";
+        button.title = "Advanced Message Editor (Beta)";
+        button.setAttribute("aria-label", "Advanced Message Editor (Beta)");
+        button.innerHTML = editorButtonIcon();
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            launchEditorFromPlugin();
+        });
+        host.row.insertBefore(button, host.before);
+        debug("editor: button installed in composer");
     }
 
     function handleEditorReady() {
@@ -907,11 +943,11 @@
         document.addEventListener("DOMContentLoaded", () => {
             installStyles();
             dispatchMeta();
-            installEditorLauncher();
+            installEditorButton();
         }, { once: true });
     } else {
         installStyles();
         dispatchMeta();
-        installEditorLauncher();
+        installEditorButton();
     }
 })();

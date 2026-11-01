@@ -188,9 +188,6 @@ final class MessageEditorController: NSObject, WKScriptMessageHandler, WKNavigat
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         editorLog.debug("editor loaded: \(webView.url?.absoluteString ?? "unknown", privacy: .public)")
-        #if DEBUG
-        runEditorUITest(webView)
-        #endif
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -242,61 +239,6 @@ final class MessageEditorController: NSObject, WKScriptMessageHandler, WKNavigat
         }
         return nil
     }
-
-    #if DEBUG
-    private func runEditorUITest(_ webView: WKWebView) {
-        guard ProcessInfo.processInfo.environment["BC_EDITOR_TEST"] == "1" else { return }
-        let js = """
-        (() => {
-          if (window.__bcEditorAutoTest) { return "already-installed"; }
-          window.__bcEditorAutoTest = true;
-          const log = (...args) => { try { window.webkit.messageHandlers.bcLog.postMessage("bc-editor-test: " + args.join(" ")); } catch {} };
-          const started = Date.now();
-          const timer = setInterval(() => {
-            if (!window.DiscohookEditor) {
-              if (Date.now() - started > 30000) {
-                clearInterval(timer);
-                log("timeout waiting DiscohookEditor", (document.body?.innerText || "").slice(0, 200));
-              }
-              return;
-            }
-            if (!window.__bcEditorInitAt && Date.now() - started < 15000) return;
-            clearInterval(timer);
-            log("DiscohookEditor ready initAt=", window.__bcEditorInitAt || 0);
-            setTimeout(() => {
-              try {
-                window.DiscohookEditor.setData({ messages: [{ _id: crypto.randomUUID(), data: {
-                  content: "",
-                  embeds: [{
-                    title: "BotClient iOS Editor",
-                    description: "Advanced Message Editor (Beta) から送信しました",
-                    color: 5870866
-                  }]
-                } }] });
-                log("setData ok");
-              } catch (error) {
-                log("setData failed", String(error));
-              }
-              setTimeout(() => {
-                const buttons = Array.from(document.querySelectorAll("button"));
-                const send = buttons.find(button => /^send( message)?$/i.test((button.textContent || "").trim()));
-                log("send found=", !!send, "labels=", buttons.map(button => (button.textContent || "").trim()).filter(Boolean).slice(0, 12).join("|"));
-                if (send) send.click();
-              }, 1200);
-            }, 800);
-          }, 500);
-          return "installed";
-        })()
-        """
-        webView.evaluateJavaScript(js) { result, error in
-            if let error {
-                editorLog.error("editor ui test failed: \(error.localizedDescription, privacy: .public)")
-            } else {
-                editorLog.debug("editor ui test: \(String(describing: result), privacy: .public)")
-            }
-        }
-    }
-    #endif
 }
 
 private final class EditorViewController: UIViewController {

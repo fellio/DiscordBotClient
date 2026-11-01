@@ -182,7 +182,6 @@ struct DiscordWebView: UIViewRepresentable {
             logDiagnostics(webView, delay: 6)
             logDiagnostics(webView, delay: 14)
             runUITest(webView)
-            runEditorUITest(webView)
             #endif
             attemptDebugLogin(webView)
         }
@@ -421,50 +420,6 @@ struct DiscordWebView: UIViewRepresentable {
                     log.error("ui test install failed: \(error.localizedDescription, privacy: .public)")
                 } else {
                     log.debug("ui test: \(String(describing: result), privacy: .public)")
-                }
-            }
-        }
-
-        private func runEditorUITest(_ webView: WKWebView) {
-            guard ProcessInfo.processInfo.environment["BC_EDITOR_TEST"] == "1" else { return }
-            let js = """
-            (() => {
-              if (window.__bcEditorOpenTest) { return "already-installed"; }
-              window.__bcEditorOpenTest = true;
-              const log = (...args) => { try { console.log("bc-editortest:", ...args); } catch {} };
-              let clicked = false;
-              let reported = false;
-              const timer = setInterval(() => {
-                if (clicked) return;
-                if (!location.pathname.startsWith("/channels/")) return;
-                const launcher = document.getElementById("bc-editor-launcher");
-                if (!launcher) {
-                  if (!reported) {
-                    reported = true;
-                    log("launcher missing at", location.pathname, "vencord=", typeof window.Vencord, "plugins=", Boolean(window.Vencord?.Plugins?.plugins));
-                  }
-                  return;
-                }
-                if (getComputedStyle(launcher).display === "none") {
-                  if (!reported) {
-                    reported = true;
-                    log("launcher hidden plugins=", Object.keys(window.Vencord?.Plugins?.plugins || {}).slice(0, 12).join(","), "channel=", Boolean(document.querySelector('[role="textbox"][contenteditable="true"]')));
-                  }
-                  return;
-                }
-                clicked = true;
-                clearInterval(timer);
-                log("clicking launcher at", location.pathname);
-                launcher.click();
-              }, 2000);
-              return "installed";
-            })()
-            """
-            webView.evaluateJavaScript(js) { result, error in
-                if let error {
-                    log.error("editor ui test install failed: \(error.localizedDescription, privacy: .public)")
-                } else {
-                    log.debug("editor ui test: \(String(describing: result), privacy: .public)")
                 }
             }
         }
