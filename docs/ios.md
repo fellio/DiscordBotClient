@@ -101,6 +101,7 @@ Discord Web が `fetch` / `XMLHttpRequest` で送る `https://discord.com/api/*`
 Discord 上に注入した Vencord の BotClient プラグインから、Discohook ベースのエディタを iOS ネイティブのモーダルとして開きます。ホスト型の localhost サーバーは使わず、アプリに同梱した `desktop/editor` を `bc-editor://local/index.html` として配信します。
 
 - **起動**: メッセージ欄の右側、絵文字ボタンの左にエディタボタンを挿入します（Mac 版のチャットバーボタンと同じ位置）。タップすると Vencord プラグインのチャットバーボタンをプログラム的にクリックし、通常のプラグイン経路でエディタを要求します。ボタンはコンポーザの描画後に自動で追加され、チャンネル以外では非表示になります。
+- **ボタンの一本化**: プラグイン自身が登録する Vencord のチャットバーボタンは、モバイルのコンポーザにも描画されると上のインラインボタンと重複します。`bridge.js` が 1 秒ごとに `removeChatBarButton("BotClient")` で登録を解除し、すでに描画済みの `.vc-chatbar-button` は `display: none` で隠します。エディタを開く処理はプラグインの render を直接呼ぶため、登録解除後も動作します。
 - **配信**: `EditorSchemeHandler`（`WKURLSchemeHandler`）がバンドル内の `editor` フォルダを読み、`index.html` の `<head>` 直後に `editor-frame.js` をインライン注入します。パスは正規化してルート外への参照を拒否します。
 - **ブリッジ**: エディタは `window.electronAPI.reactReady()` で `MessageChannel` を作り、`window.postMessage("forward-editor-port", "*", [port])` でホストへ渡します。Discord ページ側の `bridge.js` がポートを受け取り、`window.__bcEditorEvent` / `window.__bcEditorInit` を介してネイティブ（`bcEditor` メッセージハンドラ）と JSON を中継します。localhost も CSP 緩和も不要です。
 - **初期化**: ネイティブはプラグインの init データを `window.__bcEditorInit` でエディタへ渡します。
@@ -120,6 +121,7 @@ Discord 上に注入した Vencord の BotClient プラグインから、Discoho
 | メッセージ履歴 | `GET /api/v9/channels/1566086515367612438/messages 200` |
 | 通常メッセージ送信 | UI のコンポーザに入力し送信ボタンをクリック。`POST /api/v9/channels/1566086515367612438/messages 200`、送信後にコンポーザがクリアされ、チャンネルにメッセージが表示されることを確認 |
 | typing | `POST /api/v9/channels/1566086515367612438/typing 204` |
+| エディタボタンの重複なし | プラグインのチャットバーボタンを描画させても、コンポーザに表示されるエディタボタンはインラインの 1 つだけであることを確認 |
 | エディタ起動 | コンポーザ内のエディタボタンから Advanced Message Editor (Beta) がモーダルで開くことを確認 |
 | エディタ初期化 | モーダル表示中に init がエディタへ届き、Discohook エディタが操作可能になることを確認 |
 | エディタ起動時の自動送信なし | エディタを開いたまま 1 分以上待機し、`submit` / `POST /messages` が発生せずモーダルが開いたままであることを確認 |
