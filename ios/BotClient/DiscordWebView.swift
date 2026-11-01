@@ -27,12 +27,22 @@ struct DiscordWebView: UIViewRepresentable {
         let apiBridge = DiscordAPIBridge()
         context.coordinator.apiBridge = apiBridge
         configuration.userContentController.addScriptMessageHandler(apiBridge, contentWorld: .page, name: "bcApi")
+        configuration.userContentController.add(context.coordinator.editorController, contentWorld: .page, name: "bcEditor")
         configuration.userContentController.add(context.coordinator, name: "bcLog")
         for script in Self.makeUserScripts() {
             configuration.userContentController.addUserScript(script)
         }
+        #if DEBUG
+        if let token = ProcessInfo.processInfo.environment["BC_BOT_TOKEN"], !token.isEmpty {
+            let source = "try { localStorage.setItem('token', JSON.stringify(\(Self.jsStringLiteral(token)))); } catch {}"
+            configuration.userContentController.addUserScript(
+                WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+            )
+        }
+        #endif
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        context.coordinator.editorController.discordWebView = webView
         #if DEBUG
         let useDesktopLayout = ProcessInfo.processInfo.environment["BC_DESKTOP_UA"] == "1"
         #else
@@ -63,7 +73,9 @@ struct DiscordWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "bcApi", contentWorld: .page)
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "bcEditor", contentWorld: .page)
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "bcLog")
+        coordinator.editorController.discordWebView = nil
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
     }
@@ -131,6 +143,7 @@ struct DiscordWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         private let model: WebViewModel
         var apiBridge: DiscordAPIBridge?
+        let editorController = MessageEditorController()
         private var didAttemptDebugLogin = false
 
         init(model: WebViewModel) {
@@ -169,6 +182,7 @@ struct DiscordWebView: UIViewRepresentable {
             logDiagnostics(webView, delay: 6)
             logDiagnostics(webView, delay: 14)
             runUITest(webView)
+            runEditorUITest(webView)
             #endif
             attemptDebugLogin(webView)
         }
@@ -208,16 +222,20 @@ struct DiscordWebView: UIViewRepresentable {
             didAttemptDebugLogin = true
             let literal = DiscordWebView.jsStringLiteral(token)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                webView.evaluateJavaScript("window.__bcAutoLogin ? (window.__bcAutoLogin(\(literal)), 1) : 0") { _, error in
+                let js = """
+                (() => {
+                  if (!window.__bcLoginBot || !location.pathname.startsWith("/login")) return 0;
+                  Promise.resolve(window.__bcLoginBot(\(literal))).then(ok => {
+                    if (!ok && window.__bcAutoLogin) window.__bcAutoLogin(\(literal));
+                  }).catch(() => {
+                    if (window.__bcAutoLogin) window.__bcAutoLogin(\(literal));
+                  });
+                  return 1;
+                })()
+                """
+                webView.evaluateJavaScript(js) { _, error in
                     if let error {
                         log.error("auto login failed: \(error.localizedDescription, privacy: .public)")
-                    }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    webView.evaluateJavaScript("window.__bcLoginBot ? (window.__bcLoginBot(\(literal)), 1) : 0") { _, error in
-                        if let error {
-                            log.error("native login failed: \(error.localizedDescription, privacy: .public)")
-                        }
                     }
                 }
             }
@@ -403,6 +421,50 @@ struct DiscordWebView: UIViewRepresentable {
                     log.error("ui test install failed: \(error.localizedDescription, privacy: .public)")
                 } else {
                     log.debug("ui test: \(String(describing: result), privacy: .public)")
+                }
+            }
+        }
+
+        private func runEditorUITest(_ webView: WKWebView) {
+            guard ProcessInfo.processInfo.environment["BC_EDITOR_TEST"] == "1" else { return }
+            let js = """
+            (() => {
+              if (window.__bcEditorOpenTest) { return "already-installed"; }
+              window.__bcEditorOpenTest = true;
+              const log = (...args) => { try { console.log("bc-editortest:", ...args); } catch {} };
+              let clicked = false;
+              let reported = false;
+              const timer = setInterval(() => {
+                if (clicked) return;
+                if (!location.pathname.startsWith("/channels/")) return;
+                const launcher = document.getElementById("bc-editor-launcher");
+                if (!launcher) {
+                  if (!reported) {
+                    reported = true;
+                    log("launcher missing at", location.pathname, "vencord=", typeof window.Vencord, "plugins=", Boolean(window.Vencord?.Plugins?.plugins));
+                  }
+                  return;
+                }
+                if (getComputedStyle(launcher).display === "none") {
+                  if (!reported) {
+                    reported = true;
+                    log("launcher hidden plugins=", Object.keys(window.Vencord?.Plugins?.plugins || {}).slice(0, 12).join(","), "channel=", Boolean(document.querySelector('[role="textbox"][contenteditable="true"]')));
+                  }
+                  return;
+                }
+                clicked = true;
+                clearInterval(timer);
+                log("clicking launcher at", location.pathname);
+                launcher.click();
+              }, 2000);
+              return "installed";
+            })()
+            """
+            webView.evaluateJavaScript(js) { result, error in
+                if let error {
+                    log.error("editor ui test install failed: \(error.localizedDescription, privacy: .public)")
+                } else {
+                    log.debug("editor ui test: \(String(describing: result), privacy: .public)")
                 }
             }
         }
