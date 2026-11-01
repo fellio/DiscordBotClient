@@ -52,20 +52,15 @@ npm start
 - MOD が読み込めない場合は診断にエラーが出ます。`extensions/<mod>/manifest.json` が同梱されているか確認してください。
 - 開発者ツールはメニュー「クライアント → 開発者ツール」。
 
-## 8. iPhone / iPad から使う
+## 8. iPhone から使う（iOS アプリ）
 
-iPhone 11（iOS 18.5 以上）の Safari から使える Web クライアントです。Mac 側でブリッジを起動します。
+iPhone 11（iOS 18.5 以上）向けのネイティブアプリです。Mac 側でサーバーを起動する必要はありません。
 
-```bash
-cd iPhone
-./start.sh --lan       # 0.0.0.0:8787（同一 Wi-Fi からアクセス可能）
-```
+1. Xcode 16.4 で `ios/BotClient.xcodeproj` を開き、`BotClient` スキームを iPhone 11（iOS 18.5）シミュレータまたは実機で実行します（[build.md](build.md)）。
+2. Discord のログイン画面で **Bot Token** を入力します。アプリは `applications/@me` で Bot を検証し、Message Content Intent が無効なら案内を表示します（トークンはメモリ上のみ、保存されません）。
+3. サーバー → チャンネルを選び、通常の Discord UI でメッセージを送信します。
 
-1. iPhone の Safari で `http://<Mac の IP>:8787/` を開きます（Mac の IP は `ipconfig getifaddr en0` などで確認）。
-2. Bot トークンを入力してログインします（トークンはメモリ上のみ、保存されません）。
-3. サーバー → チャンネルを選び、通常 / Embed / Components V2 を送信します。
-
-- 共有メニューの「ホーム画面に追加」で PWA として全画面表示できます。
-- ブリッジを停止していると「ネットワークに接続できません」と表示されます。`./start.sh` で再起動してください。
-- `--lan` は認証なしの HTTP サーバーを LAN に公開します。信頼できるネットワーク内でのみ使用してください。
-- 詳細・検証結果・制限事項は [iphone.md](iphone.md) を参照してください。
+- 本物の Discord Web を WKWebView に読み込み、Vencord とネイティブブリッジを注入しています。
+- ログイン状態は保存されないため、アプリ再起動のたびにトークン入力が必要です。
+- Embed / Components V2 エディタ、音声、プッシュ通知は iOS 版には含まれません。
+- 詳細・検証結果・制限事項は [ios.md](ios.md) を参照してください。

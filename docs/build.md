@@ -42,24 +42,24 @@ bash scripts/package.sh
 これらは**ビルド済みバンドルをリポジトリに同梱**しています（アプリ動作に必須のため）。
 再生成する場合は各上流を取得してビルドし、該当ディレクトリを置き換えてください。
 
-## iPhone クライアント
+## iOS アプリ
 
-`iPhone/` はビルド工程がありません（静的ファイル + Node スクリプト、npm 依存なし）。Node.js 18 以降で起動できます。
-
-```bash
-cd iPhone
-./start.sh          # 127.0.0.1:8787（同じ Mac からのみ）
-./start.sh --lan    # 0.0.0.0:8787（同一 LAN へ公開）
-```
-
-構文確認:
+`ios/BotClient.xcodeproj` を Xcode 16.4 で開き、`BotClient` スキームを実行します。iPhone 11 / iOS 18.5 以上のシミュレータまたは実機が対象です。
 
 ```bash
-node --check iPhone/server/bridge.mjs
-node --check iPhone/web/app.js
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
+  -project ios/BotClient.xcodeproj \
+  -scheme BotClient \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPhone 11,OS=18.5' \
+  build
 ```
 
-動作検証は Chrome の CDP で iPhone 11（414×896、DPR 2、iOS 18.5 Safari UA）をエミュレートし、実 Discord API に対して行いました（28/28 成功）。詳細は [iphone.md](iphone.md) を参照してください。実機 iPhone / Safari での確認は未実施です。
+- `xcode-select` が Command Line Tools を指している場合は `DEVELOPER_DIR` の指定が必要です。
+- Bundle ID は `local.botclient.ios`、Deployment Target は iOS 18.5、対応端末は iPhone（`TARGETED_DEVICE_FAMILY = 1`）。実機で動かす場合は Signing & Capabilities で Team / Bundle ID を変更してください。
+- Vencord ビルド（`ios/BotClient/Resources/Vencord.js` / `Vencord.css`）と `bridge.js` はビルド済みバンドルを同梱しています。
+- Xcode 16.4 で Debug ビルドが成功し、iPhone 11（iOS 18.5）シミュレータでログイン・Gateway 接続・メッセージ送信・無効トークンのエラー処理を実 Discord API に対して確認済みです。詳細は [ios.md](ios.md) を参照してください。実機 iPhone での確認は未実施です。
+- DEBUG ビルドでは環境変数 `BC_BOT_TOKEN` / `BC_UI_TEST` / `BC_UI_TEST_MESSAGE` / `BC_DESKTOP_UA` で自動ログインと UI 検証を実行できます（リリースビルドには含まれません）。
 
 ## git 管理方針
 
@@ -69,8 +69,10 @@ node --check iPhone/web/app.js
 - `dist-desktop/` — packager の中間出力
 - `dist/*` — パッケージ成品（`dist/.gitkeep` のみプレースホルダとして追跡）
 - `.DS_Store` / `*.xcuserstate`
+- `ios/build/` — Xcode のビルド成果物（DerivedData をリポジトリ内に指定した場合）
+- `ios/**/xcuserdata/` — Xcode のユーザー固有設定
 
-ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iPhone クライアント（`iPhone/` の Web UI・ブリッジ・アイコン）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
+ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iOS アプリ（`ios/BotClient.xcodeproj`・Swift ソース・`Resources/` の Vencord / bridge.js・アプリアイコン）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
 
 ## バージョン / ライセンス
 
