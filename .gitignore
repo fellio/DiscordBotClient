@@ -4,3 +4,5 @@ dist/*
 !dist/.gitkeep
 .DS_Store
 *.xcuserstate
+xcuserdata/
+ios/build/
