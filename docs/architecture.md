@@ -60,6 +60,29 @@ Discord Web はユーザー用の生トークンを送りますが、Bot API は
 - **エディタの閉じる×ボタン**（`#bc-editor-close`）: Settings ボタンの親要素に追加。クリックで `electronAPI.closeWindow()`。
 - **macOS の back/forward 位置**: `hiddenInset` の信号機と重ならないよう `[class*="backForwardButtons"]{margin-left:76px;}` を注入（darwin のみ）。
 
+## iPhone クライアント（Web + bridge）
+
+`iPhone/` は Electron とは独立したモバイル Web クライアントです。iOS 18.5 以上の Safari（iPhone 11 基準）を対象に、静的 UI と Node 製のローカルブリッジで構成します。
+
+```
+Safari ── POST /api/proxy {token, method, path, body} ──▶ bridge (127.0.0.1:8787)
+                                                           │ Authorization: Bot <token>
+                                                           │ User-Agent: DiscordBot (...)
+                                                           ▼
+                                                  discord.com/api/v10
+```
+
+- **静的 UI** (`web/`): ログイン / サーバー / チャンネル / チャットの 4 画面。`100dvh` と `env(safe-area-inset-*)` でモバイル表示に対応し、`manifest.webmanifest` で PWA（ホーム画面追加）に対応します。
+- **ブリッジ** (`server/bridge.mjs`): `web/` の配信と `/api/proxy` を提供。依存パッケージなし。
+  - メソッドは `GET` / `POST` / `PATCH` / `DELETE` のみ、パスは `/` 始まりかつ `..` を含まないもののみ許可。
+  - 静的配信は `web/` 配下に解決できるファイルだけを返す（`web/` 外は 403）。
+  - トークンはリクエストボディから受け取り、`Authorization: Bot <token>` を付けて Discord へ転送。ログ・ディスクには残さない。
+  - 既定で `127.0.0.1` にバインド。`--lan` 指定時のみ `0.0.0.0` に公開。
+- **なぜ Electron のヘッダー正規化を再利用しないか**: iPhone の Safari は Electron の `session.webRequest` を持たないため、同じ正規化（Bot スキーム / Bot UA / ブラウザヘッダー除去）を HTTP ブリッジとして独立実装しています。ブラウザ UA のままでは Discord が `40333` を返すことを実 API で確認済みです。
+- メッセージ取得はチャンネルを開いた時と送信後の REST 再取得のみで、Gateway によるリアルタイム受信は行いません。
+
+詳細は [iphone.md](iphone.md) を参照してください。
+
 ## 設定とメニュー
 
 - 設定は `userData/settings.json`（`clientMod`, `zoom`）。

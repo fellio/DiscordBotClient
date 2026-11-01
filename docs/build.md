@@ -42,6 +42,25 @@ bash scripts/package.sh
 これらは**ビルド済みバンドルをリポジトリに同梱**しています（アプリ動作に必須のため）。
 再生成する場合は各上流を取得してビルドし、該当ディレクトリを置き換えてください。
 
+## iPhone クライアント
+
+`iPhone/` はビルド工程がありません（静的ファイル + Node スクリプト、npm 依存なし）。Node.js 18 以降で起動できます。
+
+```bash
+cd iPhone
+./start.sh          # 127.0.0.1:8787（同じ Mac からのみ）
+./start.sh --lan    # 0.0.0.0:8787（同一 LAN へ公開）
+```
+
+構文確認:
+
+```bash
+node --check iPhone/server/bridge.mjs
+node --check iPhone/web/app.js
+```
+
+動作検証は Chrome の CDP で iPhone 11（414×896、DPR 2、iOS 18.5 Safari UA）をエミュレートし、実 Discord API に対して行いました（28/28 成功）。詳細は [iphone.md](iphone.md) を参照してください。実機 iPhone / Safari での確認は未実施です。
+
 ## git 管理方針
 
 `.gitignore` により以下を除外します（再生成可能なため）。
@@ -51,7 +70,7 @@ bash scripts/package.sh
 - `dist/*` — パッケージ成品（`dist/.gitkeep` のみプレースホルダとして追跡）
 - `.DS_Store` / `*.xcuserstate`
 
-ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
+ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iPhone クライアント（`iPhone/` の Web UI・ブリッジ・アイコン）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
 
 ## バージョン / ライセンス
 
