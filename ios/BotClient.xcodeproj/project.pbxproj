@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BC0000000000000000000010 /* editor in Resources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000011 /* editor */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BC0000000000000000000005 /* BotClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BotClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC0000000000000000000011 /* editor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = editor; path = ../desktop/editor; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -29,6 +34,7 @@
 			isa = PBXGroup;
 			children = (
 				BC000000000000000000000F /* BotClient */,
+				BC0000000000000000000011 /* editor */,
 				BC0000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -105,6 +111,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC0000000000000000000010 /* editor in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
