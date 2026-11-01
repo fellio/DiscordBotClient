@@ -43,11 +43,15 @@ ios/
     ContentView.swift         # 全画面 WKWebView + 読み込み表示 + 再試行オーバーレイ
     DiscordWebView.swift      # WKWebView 設定・UserScript 注入・ナビゲーション処理
     DiscordAPIBridge.swift    # WKScriptMessageHandlerWithReply による REST 中継
+    MessageEditorController.swift  # メッセージエディタのモーダル表示と Discord とのリレー
+    EditorSchemeHandler.swift # bc-editor:// でエディタ本体を配信する WKURLSchemeHandler
     Resources/
       bridge.js               # ページ注入（fetch/XHR/WebSocket パッチ、BotClientNative シム）
+      editor-frame.js         # エディタページへ注入するブリッジ（ポート確立・submit 中継）
       Vencord.js              # Vencord ビルド（Bot ログインプラグイン同梱）
       Vencord.css             # Vencord のスタイル
     Assets.xcassets           # アプリアイコン
+desktop/editor/               # Discohook ベースのエディタ（アプリへ editor フォルダとして同梱）
 ```
 
 ## 動作の仕組み
@@ -89,8 +93,21 @@ Discord Web が `fetch` / `XMLHttpRequest` で送る `https://discord.com/api/*`
 - `DOMContentLoaded` で `vencord:meta` イベントを発火し、Vencord の Web 拡張を初期化します。
 - `window.BotClientNative` を提供します。
   - `getBotInfo` / `getBotClientName("BotClient iOS")` / `getPrivateChannelDefault` / experiments
-  - ウィンドウ操作系は no-op、`requestOpenMessageEditorWindow` は false
+  - ウィンドウ操作系は no-op、`requestOpenMessageEditorWindow` は iOS ネイティブのエディタを開きます
 - iOS の WKWebView には `navigator.mediaDevices` / `getDisplayMedia` / `setAppBadge` / `clearAppBadge` がないため、Vencord 起動前にスタブを設置します。
+
+### Advanced Message Editor (Beta)
+
+Discord 上に注入した Vencord の BotClient プラグインから、Discohook ベースのエディタを iOS ネイティブのモーダルとして開きます。ホスト型の localhost サーバーは使わず、アプリに同梱した `desktop/editor` を `bc-editor://local/index.html` として配信します。
+
+- **起動**: モバイルでは Discord 画面右下に `エディタ` ランチャーを表示します。タップすると Vencord プラグインのチャットバーボタンをプログラム的にクリックし、通常のプラグイン経路でエディタを要求します。
+- **配信**: `EditorSchemeHandler`（`WKURLSchemeHandler`）がバンドル内の `editor` フォルダを読み、`index.html` の `<head>` 直後に `editor-frame.js` をインライン注入します。パスは正規化してルート外への参照を拒否します。
+- **ブリッジ**: エディタは `window.electronAPI.reactReady()` で `MessageChannel` を作り、`window.postMessage("forward-editor-port", "*", [port])` でホストへ渡します。Discord ページ側の `bridge.js` がポートを受け取り、`window.__bcEditorEvent` / `window.__bcEditorInit` を介してネイティブ（`bcEditor` メッセージハンドラ）と JSON を中継します。localhost も CSP 緩和も不要です。
+- **初期化**: ネイティブはプラグインの init データを `window.__bcEditorInit` でエディタへ渡します。
+- **送信**: エディタの submit（`action` / `profile` / `messages` / `files`）をネイティブが受け取り、Discord ページへ転送します。`bridge.js` はファイルを base64 から `ArrayBuffer` に戻し、`type: "submit"` を付けてプラグインのポートへ送ります。プラグインが REST でメッセージを作成し、成功後にモーダルを閉じます。
+- **モーダル**: `UINavigationController` + `.overFullScreen` で表示します。`.fullScreen` だと背後の Discord WKWebView がウィンドウから外れてイベント配信が止まり、初期化が届かなくなるためです。左上の × で閉じられます。
+- **ストレージ**: カスタムスキームでは WebKit が localStorage を拒否するため、`editor-frame.js` がメモリ上の Map ベースの shim を設置します。`crypto.randomUUID` の shim も同梱します。
+- **エラー**: エディタの読み込み失敗時はアラートを表示し、× で閉じられるようにしています。Web プロセス終了時は再読み込みします。
 
 ## 検証結果（Xcode 16.4 / iPhone 11 シミュレータ / iOS 18.5）
 
@@ -103,6 +120,10 @@ Discord Web が `fetch` / `XMLHttpRequest` で送る `https://discord.com/api/*`
 | メッセージ履歴 | `GET /api/v9/channels/1566086515367612438/messages 200` |
 | 通常メッセージ送信 | UI のコンポーザに入力し送信ボタンをクリック。`POST /api/v9/channels/1566086515367612438/messages 200`、送信後にコンポーザがクリアされ、チャンネルにメッセージが表示されることを確認 |
 | typing | `POST /api/v9/channels/1566086515367612438/typing 204` |
+| エディタ起動 | モバイルの `エディタ` ランチャーから Advanced Message Editor (Beta) がモーダルで開くことを確認 |
+| エディタ初期化 | モーダル表示中に init がエディタへ届き、Discohook エディタが操作可能になることを確認 |
+| エディタ送信（Embed） | エディタで Embed を設定して送信。`POST /api/v9/channels/1566086515367612438/messages 200`、チャンネルに Embed が表示され、モーダルが閉じることを確認 |
+| エディタ後の通常送信 | エディタを閉じた後も通常のコンポーザから送信でき、`POST .../messages 200` を確認 |
 | 無効トークン | `401 Unauthorized` を検出し、Bot Token ログイン画面へ戻る（クラッシュなし） |
 | Bot 制限エンドポイント | billing / quests / powerups などは `403`。Discord UI は継続動作し、致命的エラーにならない |
 
@@ -119,7 +140,8 @@ Discord Web が `fetch` / `XMLHttpRequest` で送る `https://discord.com/api/*`
 
 - 検証は iPhone 11 シミュレータ（iOS 18.5）で実施済みです。実機 iPhone での動作確認は未実施です。実機では Xcode の Signing Team 設定が必要です。
 - ログイン状態は保存しません（`nonPersistent`）。アプリを再起動するたびに Bot トークンの入力が必要です。
-- iOS アプリには Discohook エディタ（Embed / Components V2 ビルダー）は同梱していません。通常の Discord メッセージ UI を使用します。
+- Advanced Message Editor は Discord 画面右下の `エディタ` ランチャーから開きます。Discord の標準 UI にエディタ用ボタンは追加していません（モバイルのチャットバーが狭いため）。
+- エディタの添付ファイル送信は実装済み（base64 → `ArrayBuffer` 中継）ですが、検証は未実施です。
 - 音声 / 画面共有 / プッシュ通知は対象外です。Vencord の一部機能は iOS にない Web API のため動作しません（スタブで起動のみ維持）。
 - Vencord が Electron 向けに描画するウィンドウコントロール（最小化・閉じる等）が Web UI 上に表示されますが、no-op です。
 
@@ -140,6 +162,9 @@ DEBUG ビルドのみ、環境変数で自動ログインと UI 検証を実行�
 | `BC_DESKTOP_UA=1` | デスクトップ UA + 0.6 ズームで表示確認 |
 | `BC_UI_TEST=<guild>/<channel>` | Vencord のルーターでチャンネルへ遷移し、実コンポーザへ入力 |
 | `BC_UI_TEST_MESSAGE` | `BC_UI_TEST` で送信するメッセージ本文 |
+| `BC_EDITOR_TEST=1` | エディタを自動で開き、Embed を設定して送信ボタンをクリック |
+
+`BC_EDITOR_TEST=1` は `BC_UI_TEST` でチャンネルへ移動した後に、`エディタ` ランチャーをクリックし、Discohook へサンプル Embed を設定して送信します。エディタの読み込みから送信までを UI 経由で確認するためのフックです。
 
 シミュレータでの起動例（トークンはシェル変数で渡し、ログには出しません）:
 

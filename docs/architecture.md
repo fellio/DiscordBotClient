@@ -80,7 +80,8 @@ SwiftUI (ContentView)
   - ヘッダー正規化は Electron 版と同じ（Bot スキーム付与 / DiscordBot UA / Origin・Referer・Cookie・Sec-* 除去）。ネイティブ側で改めて検証します。
   - `Authorization` の付かない API 呼び出しには、メモリ上のトークン（`getBotInfo` 成功時のみ保持）を補います。
 - **Gateway**: Vencord の WebSocket を Proxy で包み、IDENTIFY（op 2）に計算済みの `intents` と `shard` を強制します。Discord Web が送るユーザー用 Intent では `4004` になるためです。
-- **Vencord**: CSS を data URL として配信し、`vencord:meta` で初期化。`window.BotClientNative` のシムを提供します（エディタ起動は false）。iOS にない `mediaDevices` / `getDisplayMedia` / `setAppBadge` などはスタブを設置します。
+- **Vencord**: CSS を data URL として配信し、`vencord:meta` で初期化。`window.BotClientNative` のシムを提供します。`requestOpenMessageEditorWindow` はネイティブのエディタを開きます。iOS にない `mediaDevices` / `getDisplayMedia` / `setAppBadge` などはスタブを設置します。
+- **メッセージエディタ**: 同梱の `desktop/editor` を `bc-editor://local/index.html`（`WKURLSchemeHandler`）で配信し、`.overFullScreen` のモーダルで表示します。エディタの `MessageChannel` ポートを Discord ページ（`bridge.js`）経由で受け取り、`bcEditor` メッセージハンドラで init / submit / close を中継します。localhost は使いません。`.fullScreen` だと背後の Discord WKWebView がイベントを処理できず init が遅延するため、`.overFullScreen` が必要です。
 - **SPA 遷移**: ログイン後は Vencord の NavigationRouter で `/channels/...` へ遷移します（ローカルストレージにトークンがないため、再読み込みするとログイン画面に戻る）。
 
 Intent 計算とシャード算出はデスクトップ版と同じロジックです（[Bot 情報と Intent 計算](#bot-情報と-intent-計算)）。詳細は [ios.md](ios.md) を参照してください。
