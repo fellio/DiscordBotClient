@@ -201,16 +201,17 @@
                             if (payload?.op === 2 && payload.d) {
                                 const meta = window.__bcBotMeta;
                                 if (meta) {
-                                    const shard = Math.min(
-                                        Number(localStorage.getItem("currentShard") || 0) || 0,
-                                        Math.max(0, meta.allShards - 1),
-                                    );
+                                    let storedShard = 0;
+                                    try {
+                                        storedShard = Number(window.localStorage?.getItem("currentShard") || 0) || 0;
+                                    } catch {
+                                        // fast connect runs where localStorage is unavailable
+                                    }
+                                    const shard = Math.min(storedShard, Math.max(0, meta.allShards - 1));
                                     payload.d.intents = meta.intents;
                                     payload.d.shard = [shard, meta.allShards];
                                     data = JSON.stringify(payload);
                                     debug(`gateway: identify intents=${meta.intents} shard=${shard}/${meta.allShards}`);
-                                } else {
-                                    debug(`gateway: identify without bot meta intents=${payload.d.intents}`);
                                 }
                             }
                         } catch {
