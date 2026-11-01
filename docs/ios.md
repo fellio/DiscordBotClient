@@ -85,7 +85,7 @@ Discord Web が `fetch` / `XMLHttpRequest` で送る `https://discord.com/api/*`
 2. `flags` から Intent を計算します（`ALL_INTENTS` = bit 0–16, 20, 21, 24, 25）。Presence / Guild Members / Message Content が無効なら対応ビットを除去します。
 3. Message Content Intent が無効な場合はログインを中断して案内を返します。
 4. 参加サーバー数からシャード数を計算します（`GUILDS_PER_SHARD = 1000`）。
-5. `WebSocket` を Proxy で包み、IDENTIFY（op 2）送信時に `intents` と `shard` を強制します。これにより Discord Web が送るユーザー用 Intent による `4004 Invalid intent(s)` を回避します。
+5. `WebSocket` を Proxy で包み、IDENTIFY（op 2）送信時に `intents` と `shard` を強制します。FAST CONNECT の IDENTIFY もこのプロキシを通りますが、そのコンテキストでは `localStorage` が使えないため、シャード値の読み取りに失敗した場合は 0 として継続します。これにより Discord Web が送るユーザー用 Intent による `4004 Invalid intent(s)` を回避します。
 
 ### Vencord と BotClientNative
 
@@ -100,7 +100,7 @@ Discord Web が `fetch` / `XMLHttpRequest` で送る `https://discord.com/api/*`
 
 Discord 上に注入した Vencord の BotClient プラグインから、Discohook ベースのエディタを iOS ネイティブのモーダルとして開きます。ホスト型の localhost サーバーは使わず、アプリに同梱した `desktop/editor` を `bc-editor://local/index.html` として配信します。
 
-- **起動**: モバイルでは Discord 画面右下に `エディタ` ランチャーを表示します。タップすると Vencord プラグインのチャットバーボタンをプログラム的にクリックし、通常のプラグイン経路でエディタを要求します。
+- **起動**: メッセージ欄の右側、絵文字ボタンの左にエディタボタンを挿入します（Mac 版のチャットバーボタンと同じ位置）。タップすると Vencord プラグインのチャットバーボタンをプログラム的にクリックし、通常のプラグイン経路でエディタを要求します。ボタンはコンポーザの描画後に自動で追加され、チャンネル以外では非表示になります。
 - **配信**: `EditorSchemeHandler`（`WKURLSchemeHandler`）がバンドル内の `editor` フォルダを読み、`index.html` の `<head>` 直後に `editor-frame.js` をインライン注入します。パスは正規化してルート外への参照を拒否します。
 - **ブリッジ**: エディタは `window.electronAPI.reactReady()` で `MessageChannel` を作り、`window.postMessage("forward-editor-port", "*", [port])` でホストへ渡します。Discord ページ側の `bridge.js` がポートを受け取り、`window.__bcEditorEvent` / `window.__bcEditorInit` を介してネイティブ（`bcEditor` メッセージハンドラ）と JSON を中継します。localhost も CSP 緩和も不要です。
 - **初期化**: ネイティブはプラグインの init データを `window.__bcEditorInit` でエディタへ渡します。
@@ -120,9 +120,12 @@ Discord 上に注入した Vencord の BotClient プラグインから、Discoho
 | メッセージ履歴 | `GET /api/v9/channels/1566086515367612438/messages 200` |
 | 通常メッセージ送信 | UI のコンポーザに入力し送信ボタンをクリック。`POST /api/v9/channels/1566086515367612438/messages 200`、送信後にコンポーザがクリアされ、チャンネルにメッセージが表示されることを確認 |
 | typing | `POST /api/v9/channels/1566086515367612438/typing 204` |
-| エディタ起動 | モバイルの `エディタ` ランチャーから Advanced Message Editor (Beta) がモーダルで開くことを確認 |
+| エディタ起動 | コンポーザ内のエディタボタンから Advanced Message Editor (Beta) がモーダルで開くことを確認 |
 | エディタ初期化 | モーダル表示中に init がエディタへ届き、Discohook エディタが操作可能になることを確認 |
+| エディタ起動時の自動送信なし | エディタを開いたまま 1 分以上待機し、`submit` / `POST /messages` が発生せずモーダルが開いたままであることを確認 |
+| エディタを閉じる | 左上の × で送信せずにモーダルが閉じ、`POST /messages` が発生しないことを確認 |
 | エディタ送信（Embed） | エディタで Embed を設定して送信。`POST /api/v9/channels/1566086515367612438/messages 200`、チャンネルに Embed が表示され、モーダルが閉じることを確認 |
+| エディタ送信（本文） | エディタで本文を入力して `Send Message` をタップ。`POST /api/v9/channels/1566086515367612438/messages 200`、モーダルが閉じ、チャンネルにメッセージが表示されることを確認 |
 | エディタ後の通常送信 | エディタを閉じた後も通常のコンポーザから送信でき、`POST .../messages 200` を確認 |
 | 無効トークン | `401 Unauthorized` を検出し、Bot Token ログイン画面へ戻る（クラッシュなし） |
 | Bot 制限エンドポイント | billing / quests / powerups などは `403`。Discord UI は継続動作し、致命的エラーにならない |
@@ -140,7 +143,7 @@ Discord 上に注入した Vencord の BotClient プラグインから、Discoho
 
 - 検証は iPhone 11 シミュレータ（iOS 18.5）で実施済みです。実機 iPhone での動作確認は未実施です。実機では Xcode の Signing Team 設定が必要です。
 - ログイン状態は保存しません（`nonPersistent`）。アプリを再起動するたびに Bot トークンの入力が必要です。
-- Advanced Message Editor は Discord 画面右下の `エディタ` ランチャーから開きます。Discord の標準 UI にエディタ用ボタンは追加していません（モバイルのチャットバーが狭いため）。
+- Advanced Message Editor はメッセージ欄右側（絵文字ボタンの左）のエディタボタンから開きます。モバイル版 Discord の DOM はデスクトップ版と異なるため、`aria-label` を持つ Send / 絵文字ボタンを基準にボタン行を検出して挿入しています。
 - エディタの添付ファイル送信は実装済み（base64 → `ArrayBuffer` 中継）ですが、検証は未実施です。
 - 音声 / 画面共有 / プッシュ通知は対象外です。Vencord の一部機能は iOS にない Web API のため動作しません（スタブで起動のみ維持）。
 - Vencord が Electron 向けに描画するウィンドウコントロール（最小化・閉じる等）が Web UI 上に表示されますが、no-op です。
@@ -162,9 +165,8 @@ DEBUG ビルドのみ、環境変数で自動ログインと UI 検証を実行�
 | `BC_DESKTOP_UA=1` | デスクトップ UA + 0.6 ズームで表示確認 |
 | `BC_UI_TEST=<guild>/<channel>` | Vencord のルーターでチャンネルへ遷移し、実コンポーザへ入力 |
 | `BC_UI_TEST_MESSAGE` | `BC_UI_TEST` で送信するメッセージ本文 |
-| `BC_EDITOR_TEST=1` | エディタを自動で開き、Embed を設定して送信ボタンをクリック |
 
-`BC_EDITOR_TEST=1` は `BC_UI_TEST` でチャンネルへ移動した後に、`エディタ` ランチャーをクリックし、Discohook へサンプル Embed を設定して送信します。エディタの読み込みから送信までを UI 経由で確認するためのフックです。
+エディタの起動・送信確認は、実際のコンポーザ内エディタボタンとエディタの `Send Message` を操作して行います。自動送信を伴うテストフックは、開いただけで送信される誤動作の原因になるため削除しました。
 
 シミュレータでの起動例（トークンはシェル変数で渡し、ログには出しません）:
 

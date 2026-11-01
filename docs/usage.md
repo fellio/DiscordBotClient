@@ -59,7 +59,7 @@ iPhone 11（iOS 18.5 以上）向けのネイティブアプリです。Mac 側�
 1. Xcode 16.4 で `ios/BotClient.xcodeproj` を開き、`BotClient` スキームを iPhone 11（iOS 18.5）シミュレータまたは実機で実行します（[build.md](build.md)）。
 2. Discord のログイン画面で **Bot Token** を入力します。アプリは `applications/@me` で Bot を検証し、Message Content Intent が無効なら案内を表示します（トークンはメモリ上のみ、保存されません）。
 3. サーバー → チャンネルを選び、通常の Discord UI でメッセージを送信します。
-4. Embed / Components V2 を作るときは、画面右下の **エディタ** をタップします。Discohook エディタがモーダルで開き、`Send` で投稿して閉じます。左上の **×** で送信せずに閉じられます。
+4. Embed / Components V2 を作るときは、メッセージ欄の右側（絵文字ボタンの左）にある **エディタ** ボタンをタップします。Discohook エディタがモーダルで開き、`Send` で投稿して閉じます。開いただけでは送信されません。左上の **×** で送信せずに閉じられます。
 
 - 本物の Discord Web を WKWebView に読み込み、Vencord とネイティブブリッジを注入しています。
 - ログイン状態は保存されないため、アプリ再起動のたびにトークン入力が必要です。
