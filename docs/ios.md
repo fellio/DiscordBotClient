@@ -55,6 +55,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 - **手動 codesign（上級者向け）**: 端末の UDID を登録した開発用プロビジョニングプロファイルを用意し、`Payload/BotClient.app/Info.plist` の Bundle ID をプロファイルの App ID に合わせ、`embedded.mobileprovision` を配置してから `codesign -f -s "Apple Development: ..." Payload/BotClient.app` を実行し、`Payload` を zip に戻します。証明書・プロファイル・Entitlements の不一致で失敗しやすいため、通常は Xcode からの Run を推奨します。
 - App Store / TestFlight 配布には Apple Developer Program の証明書と App Store Connect の設定が必要です。
 
+### Mac / Xcode がない場合
+
+未署名の IPA は非脱獄の iPhone にはインストールできません。Mac がなくても、Windows の **Sideloadly**、**AltStore**（Windows 版 AltServer）/ **SideStore** で Apple ID による再署名ができればインストール可能です。無料 Apple ID は 7 日で失効し、有料の署名サービスを使うと更新の手間を減らせます。
+
+不特定の端末へ配布する場合は、Apple Developer Program で Ad Hoc（UDID 登録）、TestFlight、App Store のいずれかを用意する必要があります。Mac・Windows・署名サービスのいずれも使えない場合、実機へ入れる手段はありません（脱獄端末は対象外）。
+
 ## 構成
 
 ```

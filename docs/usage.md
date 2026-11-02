@@ -63,7 +63,7 @@ iPhone 11（iOS 18.5 以上）向けのネイティブアプリです。Mac 側�
 
 - 本物の Discord Web を WKWebView に読み込み、Vencord とネイティブブリッジを注入しています。
 - ログイン状態は保存されないため、アプリ再起動のたびにトークン入力が必要です。
-- リポジトリ直下の `BotClient.ipa` は未署名です。実機では Xcode で Team を設定して Run するか、Sideloadly などで再署名してください（[ios.md](ios.md#実機へのインストール署名)）。
+- リポジトリ直下の `BotClient.ipa` は未署名です。実機では Xcode で Team を設定して Run するか、Sideloadly などで再署名してください（[ios.md](ios.md#実機へのインストール署名)）。Mac がない場合は Windows の Sideloadly / AltStore などを利用します。
 - 音声、プッシュ通知は iOS 版の対象外です。
 - 詳細・検証結果・制限事項は [ios.md](ios.md) を参照してください。
 
