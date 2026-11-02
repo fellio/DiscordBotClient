@@ -36,6 +36,18 @@ bash scripts/package.sh   # → dist/BotClient.app
 
 詳しい手順は [docs/usage.md](docs/usage.md)、ビルドの仕組みは [docs/build.md](docs/build.md) を参照してください。
 
+## ビルド済みファイル（リポジトリ直下）
+
+検証済みのビルドをリポジトリ直下に配置しています。いずれもローカルの成果物で、Git には含めていません。
+
+| ファイル | 内容 | 実機へのインストール |
+| --- | --- | --- |
+| `BotClient.apk` | Android Debug ビルド（debug keystore で署名済み） | **そのままインストール可能**。`adb install -r BotClient.apk`、または端末へ転送してタップ |
+| `BotClient.ipa` | iOS Release ビルド（arm64 / iOS 18.5 以上、**未署名**） | Xcode で Team を設定してビルドし直すか、Sideloadly / AltStore で再署名してインストール（[docs/ios.md](docs/ios.md#実機へのインストール署名)） |
+
+- APK は Debug ビルドのため、そのままサイドロードできます。配布用にはリリース署名済み APK の作成が必要です。
+- IPA は署名証明書を含まないため、そのままでは実機にインストールできません。Xcode の GUI で IPA を直接再署名する機能はないため、ソースから Xcode で Run するのが確実です。
+
 ## iPhone から使う（Xcode）
 
 `ios/BotClient.xcodeproj` を Xcode 16.4 で開き、`BotClient` スキームを iPhone 11（iOS 18.5）シミュレータまたは実機で実行します。起動後、Discord の Bot Token ログイン画面でトークンを入力します。

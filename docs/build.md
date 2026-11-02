@@ -78,6 +78,30 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - リリース署名は未設定です。検証は Debug ビルドで行っています（[android.md](android.md) 参照）。
 - Debug ビルドでは起動 intent の `bc_bot_token` / `bc_ui_test` / `bc_ui_test_message` extra で自動ログインと UI 検証を実行できます（リリースビルドには含まれません）。
 
+## ビルド済みファイル（リポジトリ直下）
+
+検証済みの成果物をリポジトリ直下に `BotClient.apk` / `BotClient.ipa` として配置しています。再生成する場合:
+
+```bash
+# Android（Debug 署名済み）
+cp android/app/build/outputs/apk/debug/app-debug.apk BotClient.apk
+
+# iOS（署名なし Release アーカイブ → Payload → IPA）
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
+  -project ios/BotClient.xcodeproj -scheme BotClient -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath /tmp/BotClient.xcarchive \
+  archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM=""
+
+rm -rf /tmp/bc-ipa && mkdir -p /tmp/bc-ipa/Payload
+cp -R /tmp/BotClient.xcarchive/Products/Applications/BotClient.app /tmp/bc-ipa/Payload/
+(cd /tmp/bc-ipa && zip -qry /tmp/BotClient.ipa Payload)
+cp /tmp/BotClient.ipa BotClient.ipa
+```
+
+- `DEVELOPER_DIR` は Xcode のインストール先に合わせて変更してください（この環境では `/Users/harutoueda/Downloads/Xcode.app`）。
+- `BotClient.apk` は debug keystore 署名済みのため、そのまま実機へインストールできます（[android.md](android.md) 参照）。
+- `BotClient.ipa` は署名なしのため、実機では再署名が必要です（[ios.md](ios.md#実機へのインストール署名) 参照）。
+
 ## git 管理方針
 
 `.gitignore` により以下を除外します（再生成可能なため）。
@@ -91,6 +115,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - `android/.gradle/` / `android/build/` / `android/app/build/` — Gradle のキャッシュとビルド成果物
 - `android/local.properties` — SDK パス（環境依存）
 - `android/.idea/` / `*.iml` — Android Studio のユーザー固有設定
+- `BotClient.apk` / `BotClient.ipa` — リポジトリ直下に配置するビルド成果物（ローカルのみ）
 
 ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iOS アプリ（`ios/BotClient.xcodeproj`・Swift ソース・`Resources/` の Vencord / bridge.js・アプリアイコン）、Android アプリ（`android/` の Gradle 設定・Kotlin ソース・assets・res・Gradle wrapper）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
 

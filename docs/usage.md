@@ -63,6 +63,7 @@ iPhone 11（iOS 18.5 以上）向けのネイティブアプリです。Mac 側�
 
 - 本物の Discord Web を WKWebView に読み込み、Vencord とネイティブブリッジを注入しています。
 - ログイン状態は保存されないため、アプリ再起動のたびにトークン入力が必要です。
+- リポジトリ直下の `BotClient.ipa` は未署名です。実機では Xcode で Team を設定して Run するか、Sideloadly などで再署名してください（[ios.md](ios.md#実機へのインストール署名)）。
 - 音声、プッシュ通知は iOS 版の対象外です。
 - 詳細・検証結果・制限事項は [ios.md](ios.md) を参照してください。
 
@@ -77,5 +78,6 @@ Android 8.0（API 26）以上向けのネイティブアプリです。Mac 側�
 
 - 本物の Discord Web を Android WebView に読み込み、iOS 版と共通の `bridge.js` / Vencord を注入しています。
 - 起動時に Cookie / WebStorage を消去するため、アプリ再起動のたびにトークン入力が必要です。
+- リポジトリ直下の `BotClient.apk` は Debug 署名済みで、そのまま実機へインストールできます（`adb install -r BotClient.apk`、または端末へ転送してタップ）。
 - 音声、画面共有、プッシュ通知は Android 版の対象外です。
 - 詳細・検証結果・制限事項は [android.md](android.md) を参照してください。

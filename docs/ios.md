@@ -33,6 +33,28 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 
 `xcode-select` が Command Line Tools を指している場合は `DEVELOPER_DIR` の指定が必要です。
 
+## 実機へのインストール（署名）
+
+リポジトリ直下の `BotClient.ipa` は arm64 / iOS 18.5 以上の Release ビルドですが、署名証明書を含まないため実機にはそのままインストールできません。Xcode の GUI には IPA を読み込んで再署名する機能がないため、プロジェクトからビルドするのが確実です。
+
+### Xcode でビルドしてインストールする（推奨）
+
+1. Xcode に Apple ID を追加します（Xcode → Settings → Accounts → `+` → Apple ID）。
+2. `ios/BotClient.xcodeproj` を開き、`BotClient` ターゲットの **Signing & Capabilities** で **Automatically manage signing** を有効にし、**Team** を選択します。
+3. **Bundle Identifier** を一意の値に変更します（例: `local.botclient.ios.<yourname>`）。無料の Personal Team では App ID が一意である必要があります。
+4. iPhone を USB 接続し、端末側で「信頼」を選択します。iOS 16 以降は **設定 → プライバシーとセキュリティ → デベロッパモード** を有効化して再起動します。
+5. Xcode の実行先で接続した iPhone を選択し、Run（⌘R）します。
+6. 初回起動時に「信頼されていないデベロッパ」と表示された場合は、**設定 → 一般 → VPN とデバイス管理 → デベロッパAPP** で該当の Apple ID を信頼します。
+
+- 無料の Apple ID（Personal Team）でもインストールできますが、プロビジョニングは **7 日で失効**します。失効後は Xcode から再 Run してください。Apple Developer Program（有料）では 1 年です。
+- Bundle Identifier を変更すると別アプリとして扱われます。既存のインストールとは別に追加されます。
+
+### 配布済み IPA を再署名して使う場合
+
+- **Sideloadly / AltStore / SideStore など**: `BotClient.ipa` を読み込ませ、Apple ID で再署名して端末へインストールします。無料 Apple ID の場合は 7 日で失効します。
+- **手動 codesign（上級者向け）**: 端末の UDID を登録した開発用プロビジョニングプロファイルを用意し、`Payload/BotClient.app/Info.plist` の Bundle ID をプロファイルの App ID に合わせ、`embedded.mobileprovision` を配置してから `codesign -f -s "Apple Development: ..." Payload/BotClient.app` を実行し、`Payload` を zip に戻します。証明書・プロファイル・Entitlements の不一致で失敗しやすいため、通常は Xcode からの Run を推奨します。
+- App Store / TestFlight 配布には Apple Developer Program の証明書と App Store Connect の設定が必要です。
+
 ## 構成
 
 ```

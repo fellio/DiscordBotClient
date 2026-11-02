@@ -30,6 +30,19 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - Application ID は `local.botclient.android`、`minSdk = 26`、`targetSdk = 34`、`compileSdk = 37` です。
 - Gradle 9.4.1 / Android Gradle Plugin 9.2.1（AGP 内蔵 Kotlin）を使用します。リリース署名は未設定のため、検証は Debug ビルドで行っています。
 
+## インストール
+
+リポジトリ直下の `BotClient.apk` は Debug ビルドを debug keystore で署名したものです。そのまま実機へインストールできます。
+
+```bash
+adb install -r BotClient.apk
+```
+
+- 端末へ APK を転送してタップする場合は、提供元不明のアプリ / 不明なアプリのインストールを許可してください。
+- Debug 署名のため Play Protect の警告が出ることがあります。内容を確認して「インストールする」を選択します。
+- 起動後の Bot Token 入力、チャンネル操作、エディタは Debug ビルドでもそのまま利用できます（自動ログイン用の intent extra は Debug ビルド限定です）。
+- 配布用には keystore と `signingConfig` を設定して `assembleRelease` でリリース署名済み APK を作成してください。
+
 ## 構成
 
 ```
