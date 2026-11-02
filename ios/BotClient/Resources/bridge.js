@@ -914,9 +914,8 @@
                     return true;
                 }
             } catch (error) {
-                window.__bcLoginStatus = `error: ${error?.message || error}`;
-                debug(`login: error ${error?.message || error}`);
-                return false;
+                window.__bcLoginStatus = `retrying: ${error?.message || error}`;
+                debug(`login: retrying after ${error?.message || error}`);
             }
             await new Promise(resolve => setTimeout(resolve, 500));
         }
