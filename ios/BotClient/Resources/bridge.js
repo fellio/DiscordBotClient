@@ -782,7 +782,7 @@
     window.BotClientNative = {
         getBotInfo,
         getBotClientVersion: () => "2.0.0",
-        getBotClientName: () => "BotClient iOS",
+        getBotClientName: () => window.__bcPlatformName || "BotClient iOS",
         getPrivateChannelDefault: () => ({
             type: 1,
             recipients: [PLACEHOLDER_USER],
