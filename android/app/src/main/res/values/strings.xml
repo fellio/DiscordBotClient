@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BotClient</string>
+    <string name="editor_title">メッセージエディタ</string>
+    <string name="load_error">Discord を読み込めませんでした</string>
+    <string name="retry">再試行</string>
+    <string name="close">閉じる</string>
+</resources>
