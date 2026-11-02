@@ -61,6 +61,23 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 - Xcode 16.4 で Debug ビルドが成功し、iPhone 11（iOS 18.5）シミュレータでログイン・Gateway 接続・メッセージ送信・無効トークンのエラー処理を実 Discord API に対して確認済みです。詳細は [ios.md](ios.md) を参照してください。実機 iPhone での確認は未実施です。
 - DEBUG ビルドでは環境変数 `BC_BOT_TOKEN` / `BC_UI_TEST` / `BC_UI_TEST_MESSAGE` / `BC_DESKTOP_UA` で自動ログインと UI 検証を実行できます（リリースビルドには含まれません）。
 
+## Android アプリ
+
+`android/` を Android Studio（Rabbit 2026.2.2 で確認）で開き、`app` 構成を実行します。JDK は Android Studio 同梱の JBR（Temurin 17）を使用します。Android SDK Platform 37 / Build-Tools 36.0.0 が必要です。
+
+```bash
+cd android
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+- Application ID は `local.botclient.android`、`minSdk = 26`、`targetSdk = 34`、`compileSdk = 37`。
+- Gradle 9.4.1 / Android Gradle Plugin 9.2.1（AGP 内蔵 Kotlin）を使用します。外部の `org.jetbrains.kotlin.android` プラグインは AGP 9 と競合するため適用していません。
+- `app/build.gradle.kts` の `stageEditorAssets` が `desktop/editor/` をビルド時の generated assets にコピーし、`sourceSets` が `ios/BotClient/Resources/`（`bridge.js` / `Vencord.js` / `Vencord.css`）とあわせて APK へ同梱します。
+- `local.properties`（`sdk.dir`）は Android Studio が生成します。リポジトリ管理外です。
+- リリース署名は未設定です。検証は Debug ビルドで行っています（[android.md](android.md) 参照）。
+- Debug ビルドでは起動 intent の `bc_bot_token` / `bc_ui_test` / `bc_ui_test_message` extra で自動ログインと UI 検証を実行できます（リリースビルドには含まれません）。
+
 ## git 管理方針
 
 `.gitignore` により以下を除外します（再生成可能なため）。
@@ -71,8 +88,11 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 - `.DS_Store` / `*.xcuserstate`
 - `ios/build/` — Xcode のビルド成果物（DerivedData をリポジトリ内に指定した場合）
 - `ios/**/xcuserdata/` — Xcode のユーザー固有設定
+- `android/.gradle/` / `android/build/` / `android/app/build/` — Gradle のキャッシュとビルド成果物
+- `android/local.properties` — SDK パス（環境依存）
+- `android/.idea/` / `*.iml` — Android Studio のユーザー固有設定
 
-ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iOS アプリ（`ios/BotClient.xcodeproj`・Swift ソース・`Resources/` の Vencord / bridge.js・アプリアイコン）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
+ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iOS アプリ（`ios/BotClient.xcodeproj`・Swift ソース・`Resources/` の Vencord / bridge.js・アプリアイコン）、Android アプリ（`android/` の Gradle 設定・Kotlin ソース・assets・res・Gradle wrapper）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
 
 ## バージョン / ライセンス
 

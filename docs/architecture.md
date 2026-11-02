@@ -86,6 +86,36 @@ SwiftUI (ContentView)
 
 Intent 計算とシャード算出はデスクトップ版と同じロジックです（[Bot 情報と Intent 計算](#bot-情報と-intent-計算)）。詳細は [ios.md](ios.md) を参照してください。
 
+## Android クライアント（Kotlin + WebView）
+
+`android/` は iOS 版と同じ WebView + Vencord 構成を Kotlin で実装したネイティブ Android アプリです。`ios/BotClient/Resources` の `bridge.js` / Vencord ビルドと、`desktop/editor` の Discohook を APK に同梱します。localhost の HTTP サーバーは使用しません。
+
+```
+MainActivity
+  └─ WebView (discord.com/login, モバイル Chrome UA)
+       ├─ document-start: android-shim.js → bridge.js
+       ├─ document-start: Vencord（base64 チャンク → 間接 eval）
+       └─ WebMessageListener "BCNative"
+            ├─ kind:api    → DiscordRestBridge（HttpURLConnection）
+            ├─ kind:editor → MessageEditorActivity
+            └─ kind:log    → Logcat
+MessageEditorActivity（別 Activity）
+  └─ WebView (https://appassets.androidplatform.net/index.html)
+       ├─ WebViewAssetLoader: desktop/editor を配信
+       ├─ document-start: editor-frame.js
+       └─ WebMessageListener "BCNative"（ready / submit / close）
+```
+
+- **iOS 互換シム**: iOS の `bridge.js` は `window.webkit.messageHandlers.bcApi` / `bcEditor` / `bcLog` を前提とするため、`android-shim.js` が同じ API を `WebMessageListener`（`BCNative`）上の Promise / 送信キューとして再現します。これによりブリッジ本体と Vencord プラグインを iOS と共有できます。
+- **REST ブリッジ**: Discord Web の `fetch` / XHR は `kind:"api"` としてネイティブへ渡り、`DiscordRestBridge` が URL・メソッドを検証して `HttpURLConnection` で送信します。Authorization の `Bot` 正規化、ブラウザヘッダーの除去、DiscordBot UA は iOS / Electron 版と同じです。レスポンスは base64 の本文とヘッダーを返し、JS 側で `Response` / XHR イベントへ復元します。
+- **Vencord の注入**: 約 1.69MB のバンドルを 200,000 文字ずつの base64 チャンクとして複数の document-start スクリプトで `window.__bcVencordSourceBase64` に連結し、最後に `atob` + `TextDecoder` + 間接 `eval` で実行します。Discord の CSP が `'unsafe-eval'` を許可しているため成立します。
+- **Gateway**: WebSocket Proxy による Intent / Shard 強制は共通の `bridge.js` が行います。FAST CONNECT の IDENTIFY も同じ経路です。
+- **エディタ**: コンポーザのインラインボタンから `MessageEditorActivity`（`exported=false`）を開きます。本体は `WebViewAssetLoader` で `https://appassets.androidplatform.net/index.html` として配信し、`editor-frame.js` の `MessageChannel` ポートを Discord ページの `bridge.js` 経由でリレーします。init / submit / close は `BCNative` と `window.__bcEditorInit` / `window.__bcEditorEvent` で中継し、送信は Vencord プラグイン経由で REST に流れます。
+- **ライフサイクル**: Discord WebView は `MainActivity`、エディタは `MessageEditorActivity` が保持し、`BotClientApp` の `WeakReference` で相互参照します。画面回転は Manifest の `configChanges` で Activity 再生成を抑止します。
+- **データ**: 起動時に Cookie と WebStorage を消去します。トークンはメモリ上のみで扱い、`usesCleartextTraffic=false` で平文 HTTP を禁止します。
+
+詳細は [android.md](android.md) を参照してください。
+
 ## 設定とメニュー
 
 - 設定は `userData/settings.json`（`clientMod`, `zoom`）。
