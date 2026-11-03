@@ -24,7 +24,7 @@ iOS / Android 版は本物の Discord Web を WebView に読み込み、macOS �
 
 ## ビルド済みファイル（リポジトリ直下）
 
-検証済みのビルドをリポジトリ直下に配置しています。いずれもローカルの成果物で、Git には含めていません（`.gitignore` 対象）。
+検証済みのビルドをリポジトリ直下に配置しています。いずれも Git に追跡しており、クローンするだけで入手できます。
 
 | ファイル | 内容 | 実機へのインストール |
 | --- | --- | --- |
@@ -134,8 +134,8 @@ android/
 scripts/
   package.sh         # electron-packager + 署名 + dist への配置
 docs/                # ドキュメント（architecture / usage / build / ios / android）
-BotClient.apk        # ビルド済み Android APK（ローカル・Git 管理外）
-BotClient.ipa        # ビルド済み iOS IPA（ローカル・Git 管理外・未署名）
+BotClient.apk        # ビルド済み Android APK（Git 追跡 / debug keystore 署名）
+BotClient.ipa        # ビルド済み iOS IPA（Git 追跡 / 未署名）
 ```
 
 ## 検証状況
@@ -164,7 +164,7 @@ BotClient.ipa        # ビルド済み iOS IPA（ローカル・Git 管理外・
 - Discord Web が送る生トークンを Bot API 用の `Bot ` スキームに正規化し、ブラウザ由来のヘッダー（Origin / Referer / Cookie / `Sec-*`）を除去して 40333 エラーを回避します（[docs/architecture.md](docs/architecture.md) 参照）。
 - iOS 版は WKWebView の非永続データストアを使い、ネイティブブリッジで Discord API の URL とメソッドを検証します。localhost の HTTP サーバーや LAN 公開は行いません（[docs/ios.md](docs/ios.md) 参照）。
 - Android 版は起動時に Cookie / WebStorage を消去し、`usesCleartextTraffic=false` で平文 HTTP を禁止します。ブリッジは Discord API の URL とメソッドを検証し、自動ログイン用の intent extra は Debug ビルドでのみ読み取ります（[docs/android.md](docs/android.md) 参照）。
-- 配布用の APK / IPA を配る場合は、署名鍵・プロビジョニングプロファイル・トークンを含めないよう注意してください。リポジトリ直下の成果物はローカルのみで、Git には追加していません。
+- 配布用の APK / IPA を配る場合は、署名鍵・プロビジョニングプロファイル・トークンを含めないよう注意してください。リポジトリ直下の成果物（`BotClient.apk` / `BotClient.ipa`）はトークンを埋め込まず、Debug keystore 署名の APK と未署名の IPA のみを追跡しています。
 
 ## 制限事項
 

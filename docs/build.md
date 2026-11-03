@@ -115,9 +115,8 @@ cp /tmp/BotClient.ipa BotClient.ipa
 - `android/.gradle/` / `android/build/` / `android/app/build/` — Gradle のキャッシュとビルド成果物
 - `android/local.properties` — SDK パス（環境依存）
 - `android/.idea/` / `*.iml` — Android Studio のユーザー固有設定
-- `BotClient.apk` / `BotClient.ipa` — リポジトリ直下に配置するビルド成果物（ローカルのみ）
 
-ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iOS アプリ（`ios/BotClient.xcodeproj`・Swift ソース・`Resources/` の Vencord / bridge.js・アプリアイコン）、Android アプリ（`android/` の Gradle 設定・Kotlin ソース・assets・res・Gradle wrapper）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
+ソース（`desktop/*.js` / `package.json` / `package-lock.json`）、同梱バンドル（`extensions/` / `editor/` / `assets/`）、iOS アプリ（`ios/BotClient.xcodeproj`・Swift ソース・`Resources/` の Vencord / bridge.js・アプリアイコン）、Android アプリ（`android/` の Gradle 設定・Kotlin ソース・assets・res・Gradle wrapper）、リポジトリ直下に配置する検証済みビルド（`BotClient.apk` / `BotClient.ipa`）、`scripts/`、`docs/` はすべて追跡対象です。コミットはファイルの内容・役割ごとに分割しています。
 
 ## バージョン / ライセンス
 
