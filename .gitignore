@@ -6,7 +6,3 @@ dist/*
 *.xcuserstate
 xcuserdata/
 ios/build/
-
-# リポジトリ直下に配置するビルド成果物
-/BotClient.apk
-/BotClient.ipa
